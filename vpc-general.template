@@ -1,0 +1,523 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploys baseline VPC with /20 subnets
+Metadata:
+    AWS::CloudFormation::Interface:
+        ParameterGroups:
+          - Label:
+                default: Region Config
+            Parameters:
+              - pRegionAZ1Name
+              - pRegionAZ2Name
+          - Label:
+                default: VPC Config
+            Parameters:
+              - pBastionSSHCIDR
+              - pGeneralVPCName
+              - pGeneralCIDR
+              - pDMZSubnetACIDR
+              - pDMZSubnetBCIDR
+              - pAppPrivateSubnetACIDR
+              - pAppPrivateSubnetBCIDR
+              - pDBPrivateSubnetACIDR
+              - pDBPrivateSubnetBCIDR
+              - pGWPrivateSubnetACIDR
+              - pGWPrivateSubnetBCIDR
+              - pHA2PrivateSubnetACIDR
+              - pHA2PrivateSubnetBCIDR
+              - pMgtPrivateSubnetACIDR
+              - pMgtPrivateSubnetBCIDR
+              - pVPCTenancy
+              - pS3ConfigBucket
+        ParameterLabels:
+            pGeneralVPCName:
+                default: Name of VPC
+            pGeneralCIDR:
+                default: VPC CIDR block
+            pDMZSubnetACIDR:
+                default: CIDR block of DMZ A subnet (internet facing)
+            pDMZSubnetBCIDR:
+                default: CIDR block of DMZ B subnet (internet facing)
+            pAppPrivateSubnetACIDR:
+                default: CIDR block of Application B subnet (private)
+            pAppPrivateSubnetBCIDR:
+                default: CIDR block of Application A subnet (private)
+            pDBPrivateSubnetACIDR:
+                default: CIDR block of Database A subnet (private)
+            pDBPrivateSubnetBCIDR:
+                default: CIDR block of Database B subnet (private)
+            pGWPrivateSubnetACIDR:
+                default: CIDR block of MFT Gateway A subnet (private)
+            pGWPrivateSubnetBCIDR:
+                default: CIDR block of MFT Gateway B subnet (private)
+            pHA2PrivateSubnetACIDR:
+                default: CIDR block of PAN HA A subnet (private)
+            pHA2PrivateSubnetBCIDR:
+                default: CIDR block of PAN HA B subnet (private)
+            pMgtPrivateSubnetACIDR:
+                default: CIDR block of PAN Management A subnet (private)
+            pMgtPrivateSubnetBCIDR:
+                default: CIDR block of PAN Management B subnet (private)
+            pVPCTenancy:
+                default: Instance tenancy
+            pS3ConfigBucket:
+                default: S3 Bucket Name containing application configuration parameters file
+            QuickStartS3URL:
+                default: Quick Start URL
+            QSS3BucketName:
+                default: Quick Start S3 Bucket Name
+            QSS3KeyPrefix:
+                default: Quick Start S3 Key Prefix
+    Stack:
+        Value: 2
+    VersionDate:
+        Value: 20170603
+    Identifier:
+        Value: template-vpc-general
+    Input:
+        Description: CIDR blocks, VPC name, Environment
+    Output:
+        Description: Outputs ID of all deployed resources
+Parameters:
+    pRegionAZ1Name:
+        Description: Availability Zone 1 Name in Region
+        Type: AWS::EC2::AvailabilityZone::Name
+    pRegionAZ2Name:
+        Description: Availability Zone 2 Name in Region
+        Type: AWS::EC2::AvailabilityZone::Name
+    pGeneralVPCName:
+        Description: VPC Name
+        Type: String
+        Default: 'vpc-trax'
+    pGeneralCIDR:
+        Description: CIDR block for VPC
+        Type: String
+        Default: 10.114.0.0/16
+    pDMZSubnetACIDR:
+        Description: CIDR block for DMZ AZ-1b subnet
+        Type: String
+        Default: 10.114.0.0/20
+    pDMZSubnetBCIDR:
+        Description: CIDR block for DMZ AZ-1b subnet
+        Type: String
+        Default: 10.114.16.0/20
+    pAppPrivateSubnetACIDR:
+        Description: CIDR block for Application AZ-1a subnet
+        Type: String
+        Default: 10.114.64.0/20
+    pAppPrivateSubnetBCIDR:
+        Description: CIDR block for Application AZ-1b subnet
+        Type: String
+        Default: 10.114.80.0/20
+    pDBPrivateSubnetACIDR:
+        Description: CIDR block for Database AZ-1a subnet
+        Type: String
+        Default: 10.114.96.0/20
+    pDBPrivateSubnetBCIDR:
+        Description: CIDR block for Database AZ-1b subnet
+        Type: String
+        Default: 10.114.112.0/20
+    pGWPrivateSubnetACIDR:
+        Description: CIDR block for MFT Gateway AZ-1a subnet
+        Type: String
+        Default: 10.114.32.0/20
+    pGWPrivateSubnetBCIDR:
+        Description: CIDR block for MFT Gateway AZ-1b subnet
+        Type: String
+        Default: 10.114.48.0/20
+    pHA2PrivateSubnetACIDR:
+        Description: CIDR block for PAN HA AZ-1a subnet
+        Type: String
+        Default: 10.114.192.0/20
+    pHA2PrivateSubnetBCIDR:
+        Description: CIDR block for PAN HA AZ-1b subnet
+        Type: String
+        Default: 10.114.208.0/20
+    pMgtPrivateSubnetACIDR:
+        Description: CIDR block for PAN Management AZ-1a subnet
+        Type: String
+        Default: 10.114.224.0/20
+    pMgtPrivateSubnetBCIDR:
+        Description: CIDR block for PAN Management AZ-1b subnet
+        Type: String
+        Default: 10.114.240.0/20
+    pVPCTenancy:
+        Description: Instance tenancy behavior for this VPC
+        Type: String
+        Default: default
+        AllowedValues:
+          - default
+          - dedicated
+    pEnvironment:
+        Description: Environment (dev, mpx, or prod)
+        Type: String
+        Default: mpx
+Resources:
+    rVPCGeneral:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref pGeneralCIDR
+            InstanceTenancy: !Ref pVPCTenancy
+            EnableDnsSupport: true
+            EnableDnsHostnames: true
+            Tags:
+              - Key: Name
+                Value: !Join ['-', [!Ref 'pGeneralVPCName', !Ref 'pEnvironment']]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rDMZSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pDMZSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -dmz-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rDMZSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pDMZSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -dmz-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rAppPrivateSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pAppPrivateSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -app-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rAppPrivateSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pAppPrivateSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -app-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rDBPrivateSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pDBPrivateSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -db-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rDBPrivateSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pDBPrivateSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -db-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rGWPrivateSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pGWPrivateSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -gw-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rGWPrivateSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pGWPrivateSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -gw-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rHA2PrivateSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pHA2PrivateSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -ha2-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rHA2PrivateSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pHA2PrivateSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -ha2-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rMgtPrivateSubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pMgtPrivateSubnetACIDR
+            AvailabilityZone: !Ref pRegionAZ1Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -mgt-, !Ref 'AWS::Region', a-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rMgtPrivateSubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            CidrBlock: !Ref pMgtPrivateSubnetBCIDR
+            AvailabilityZone: !Ref pRegionAZ2Name
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -mgt-, !Ref 'AWS::Region', b-net]]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rIGWGeneral:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+              - Key: Name
+                Value: !Join ['-', [igw-trax, !Ref 'pEnvironment']]
+              - Key: Environment
+                Value: !Ref pEnvironment
+    rGWAttachmentGeneralIGW:
+        Type: AWS::EC2::VPCGatewayAttachment
+        DependsOn: rIGWGeneral
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            InternetGatewayId: !Ref rIGWGeneral
+    rRouteTableDMZSubnetA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -dmz-, !Ref 'AWS::Region', a-rt]]
+    rRouteTableDMZSubnetB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -dmz-, !Ref 'AWS::Region', b-rt]]
+    rRouteDMZSubnetInternetGatewayA:
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            RouteTableId: !Ref rRouteTableDMZSubnetA
+            GatewayId: !Ref rIGWGeneral
+    rRouteDMZSubnetInternetGatewayB:
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            RouteTableId: !Ref rRouteTableDMZSubnetB
+            GatewayId: !Ref rIGWGeneral
+    rRouteAssocDMZSubnetA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableDMZSubnetA
+            SubnetId: !Ref rDMZSubnetA
+    rRouteAssocDMZSubnetB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableDMZSubnetB
+            SubnetId: !Ref rDMZSubnetB
+
+
+
+
+
+
+    rRouteTableGWPrivateSubnetA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -gw-, !Ref 'AWS::Region', a-rt]]
+    rRouteTableGWPrivateSubnetB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -gw-, !Ref 'AWS::Region', b-rt]]
+    rRouteAssocGWPrivateSubnetA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableGWPrivateSubnetA
+            SubnetId: !Ref rGWPrivateSubnetA
+    rRouteAssocGWPrivateSubnetB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableGWPrivateSubnetB
+            SubnetId: !Ref rGWPrivateSubnetB
+
+
+
+
+
+
+    rRouteTableAppPrivateSubnetA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -app-, !Ref 'AWS::Region', a-rt]]
+    rRouteTableAppPrivateSubnetB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -app-, !Ref 'AWS::Region', b-rt]]
+    rRouteAssocAppPrivateSubnetA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableAppPrivateSubnetA
+            SubnetId: !Ref rAppPrivateSubnetA
+    rRouteAssocAppPrivateSubnetB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableAppPrivateSubnetB
+            SubnetId: !Ref rAppPrivateSubnetB
+
+
+
+
+
+
+
+
+    rRouteTableDBPrivateSubnetA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -db-, !Ref 'AWS::Region', a-rt]]
+    rRouteTableDBPrivateSubnetB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -db-, !Ref 'AWS::Region', b-rt]]
+    rRouteAssocDBPrivateSubnetA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableDBPrivateSubnetA
+            SubnetId: !Ref rDBPrivateSubnetA
+    rRouteAssocDBPrivateSubnetB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableDBPrivateSubnetB
+            SubnetId: !Ref rDBPrivateSubnetB
+
+
+
+    rRouteTableMgtPrivateSubnetA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -mgt-, !Ref 'AWS::Region', a-rt]]
+    rRouteTableMgtPrivateSubnetB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref rVPCGeneral
+            Tags:
+              - Key: Name
+                Value: !Join ['', [trax-, !Ref 'pEnvironment', -mgt-, !Ref 'AWS::Region', b-rt]]
+    rRouteAssocMgtPrivateSubnetA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableMgtPrivateSubnetA
+            SubnetId: !Ref rMgtPrivateSubnetA
+    rRouteAssocMgtPrivateSubnetB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref rRouteTableMgtPrivateSubnetB
+            SubnetId: !Ref rMgtPrivateSubnetB
+
+
+
+
+
+
+
+
+
+Outputs:
+    rVPCGeneral:
+        Value: !Ref rVPCGeneral
+    rDMZSubnetA:
+        Value: !Ref rDMZSubnetA
+    rDMZSubnetB:
+        Value: !Ref rDMZSubnetB
+    rGWPrivateSubnetA:
+        Value: !Ref rGWPrivateSubnetA
+    rGWPrivateSubnetB:
+        Value: !Ref rGWPrivateSubnetB
+    rAppPrivateSubnetA:
+        Value: !Ref rAppPrivateSubnetA
+    rAppPrivateSubnetB:
+        Value: !Ref rAppPrivateSubnetB
+    rDBPrivateSubnetA:
+        Value: !Ref rDBPrivateSubnetA
+    rDBPrivateSubnetB:
+        Value: !Ref rDBPrivateSubnetB
+    rHA2PrivateSubnetA:
+        Value: !Ref rHA2PrivateSubnetA
+    rHA2PrivateSubnetB:
+        Value: !Ref rHA2PrivateSubnetB
+    rMgtPrivateSubnetA:
+        Value: !Ref rMgtPrivateSubnetA
+    rMgtPrivateSubnetB:
+        Value: !Ref rMgtPrivateSubnetB
+    rRouteTableDMZSubnetA:
+        Value: !Ref rRouteTableDMZSubnetA
+    rRouteTableDMZSubnetB:
+        Value: !Ref rRouteTableDMZSubnetB
+    rRouteTableGWPrivateSubnetA:
+        Value: !Ref rRouteTableGWPrivateSubnetA
+    rRouteTableGWPrivateSubnetB:
+        Value: !Ref rRouteTableGWPrivateSubnetB
+    rRouteTableAppPrivateSubnetA:
+        Value: !Ref rRouteTableAppPrivateSubnetA
+    rRouteTableAppPrivateSubnetB:
+        Value: !Ref rRouteTableAppPrivateSubnetB
+    rRouteTableDBPrivateSubnetA:
+        Value: !Ref rRouteTableDBPrivateSubnetA
+    rRouteTableDBPrivateSubnetB:
+        Value: !Ref rRouteTableDBPrivateSubnetB
+    rRouteTableMgtPrivateSubnetA:
+        Value: !Ref rRouteTableMgtPrivateSubnetA
+    rRouteTableMgtPrivateSubnetB:
+        Value: !Ref rRouteTableMgtPrivateSubnetB
