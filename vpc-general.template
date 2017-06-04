@@ -280,6 +280,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             CidrBlock: !Ref pMgtPrivateSubnetACIDR
+            MapPublicIpOnLaunch: true
             AvailabilityZone: !Ref pRegionAZ1Name
             VpcId: !Ref rVPCGeneral
             Tags:
@@ -291,6 +292,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             CidrBlock: !Ref pMgtPrivateSubnetBCIDR
+            MapPublicIpOnLaunch: true
             AvailabilityZone: !Ref pRegionAZ2Name
             VpcId: !Ref rVPCGeneral
             Tags:
@@ -351,9 +353,6 @@ Resources:
 
 
 
-
-
-
     rRouteTableGWPrivateSubnetA:
         Type: AWS::EC2::RouteTable
         Properties:
@@ -378,9 +377,6 @@ Resources:
         Properties:
             RouteTableId: !Ref rRouteTableGWPrivateSubnetB
             SubnetId: !Ref rGWPrivateSubnetB
-
-
-
 
 
 
