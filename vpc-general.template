@@ -168,6 +168,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             CidrBlock: !Ref pDMZSubnetACIDR
+            MapPublicIpOnLaunch: true
             AvailabilityZone: !Ref pRegionAZ1Name
             VpcId: !Ref rVPCGeneral
             Tags:
@@ -179,6 +180,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             CidrBlock: !Ref pDMZSubnetBCIDR
+            MapPublicIpOnLaunch: true
             AvailabilityZone: !Ref pRegionAZ2Name
             VpcId: !Ref rVPCGeneral
             Tags:
